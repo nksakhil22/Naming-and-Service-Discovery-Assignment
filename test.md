@@ -13,7 +13,7 @@ This document contains screenshots demonstrating the end-to-end testing of the s
 
 ### Failure / resilience test (stop one instance, TTL expiry)
 
-![Stopping one instance and registry count drops](TestCase%20Screenshots/Failure%20%3A%20resilience%20test%20%28stop%20one%20instance%2C%20TTL%20expiry.png)
+![Stopping one instance and registry count drops](TestCase%20Screenshots/Failure%20%3A%20resilience%20test%20%28stop%20one%20instance%2C%20TTL%20expiry.png%29)
 
 ### Registry heartbeats / runtime logs
 
