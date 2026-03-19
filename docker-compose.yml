@@ -1,0 +1,44 @@
+services:
+  registry:
+    build: ./registry
+    ports:
+      - "8000:8000"
+
+  service-a:
+    build: ./service
+    environment:
+      - REGISTRY_URL=http://registry:8000
+      - SERVICE_NAME=hello-service
+      - SERVICE_HOST=service-a
+      - SERVICE_PORT=8080
+      - INSTANCE_ID=hello-a
+    depends_on:
+      - registry
+    ports:
+      - "9001:8080"
+
+  service-b:
+    build: ./service
+    environment:
+      - REGISTRY_URL=http://registry:8000
+      - SERVICE_NAME=hello-service
+      - SERVICE_HOST=service-b
+      - SERVICE_PORT=8080
+      - INSTANCE_ID=hello-b
+    depends_on:
+      - registry
+    ports:
+      - "9002:8080"
+
+  client:
+    build: ./client
+    environment:
+      - REGISTRY_URL=http://registry:8000
+      - SERVICE_NAME=hello-service
+      - CALL_PATH=/hello
+      - INTERVAL_SECONDS=2
+    depends_on:
+      - registry
+      - service-a
+      - service-b
+
