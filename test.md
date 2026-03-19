@@ -7,7 +7,6 @@ This document contains screenshots demonstrating the end-to-end testing of the s
 ### Health checks and discovery (registry + instances)
 
 ![Registry and services health + discover output](TestCase%20Screenshots/Health%20checks%20and%20discovery%20%28registry%20%2B%20instances%29.png)
-
 ### Negative test (unknown service returns 503)
 
 ![Unknown service returns 503](TestCase%20Screenshots/Negative%20test%20%28unknown%20services%20returns%20503%29.png)
