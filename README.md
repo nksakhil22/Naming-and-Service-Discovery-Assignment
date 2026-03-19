@@ -88,31 +88,36 @@ Expected:
 
 ### Step 5: Test client-based service discovery (IMPORTANT)
 
-The client runs automatically in Compose and prints which instance it chose.
+The client exposes an HTTP endpoint that performs:
+- discovery from the registry
+- random instance selection
+- calling the chosen instance
 
-In a new terminal:
+Run this multiple times:
 
 ```bash
-docker compose logs -f client
+curl -s "http://localhost:9000/call?service=hello-service&path=/hello"
 ```
 
 Expected:
 
-- Lines like:
-  - `[client] -> hello-a @ service-a:8080 => ...`
-  - `[client] -> hello-b @ service-b:8080 => ...`
+- Response JSON includes `chosen_instance_id` and `chosen_url`.
 
 ### Step 6: Verify random load balancing
 
-Let the client run for ~20–30 seconds while watching logs:
+Run a loop:
 
 ```bash
-docker compose logs -f client
+for i in {1..10}; do
+  curl -s "http://localhost:9000/call?service=hello-service&path=/hello"
+  echo
+done
 ```
 
 Expected:
 
-- You should see **both** `hello-a` and `hello-b` being selected over time.
+- Some responses show `chosen_instance_id` = `hello-a`
+- Some responses show `chosen_instance_id` = `hello-b`
 
 This proves the client discovers the service and randomly selects an instance.
 
@@ -139,7 +144,7 @@ Expected:
 Now watch the client:
 
 ```bash
-docker compose logs -f client
+curl -s "http://localhost:9000/call?service=hello-service&path=/hello"
 ```
 
 Expected:
@@ -181,7 +186,6 @@ Expected:
 
 ### Client
 
-- Not an HTTP server; it runs continuously and logs:
-  - discovery from the registry
-  - the **randomly chosen** instance
-  - the response body
+- `GET /call?service=...&path=...` – discovers instances and calls one randomly
+  - returns **503** if there are **0** instances
+  - returns JSON with `chosen_instance_id` and `response`

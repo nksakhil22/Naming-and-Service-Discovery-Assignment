@@ -34,11 +34,12 @@ services:
     build: ./client
     environment:
       - REGISTRY_URL=http://registry:8000
-      - SERVICE_NAME=hello-service
-      - CALL_PATH=/hello
-      - INTERVAL_SECONDS=2
+      - DEFAULT_SERVICE_NAME=hello-service
+      - DEFAULT_CALL_PATH=/hello
     depends_on:
       - registry
       - service-a
       - service-b
+    ports:
+      - "9000:9000"
 

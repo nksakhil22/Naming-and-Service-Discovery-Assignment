@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import os
 import random
-import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import httpx
+from fastapi import FastAPI, HTTPException, Query
 
 
 def _env(name: str, default: str | None = None) -> str:
@@ -16,10 +16,10 @@ def _env(name: str, default: str | None = None) -> str:
 
 
 REGISTRY_URL = _env("REGISTRY_URL")
-SERVICE_NAME = _env("SERVICE_NAME", "hello-service")
-CALL_PATH = _env("CALL_PATH", "/hello")
-INTERVAL_SECONDS = float(_env("INTERVAL_SECONDS", "2"))
-ONE_SHOT = os.getenv("ONE_SHOT", "0") == "1"
+DEFAULT_SERVICE_NAME = os.getenv("DEFAULT_SERVICE_NAME", "hello-service")
+DEFAULT_CALL_PATH = os.getenv("DEFAULT_CALL_PATH", "/hello")
+
+app = FastAPI(title="Client (Discovery + Random Call)", version="1.0")
 
 
 def _pick_random(instances: List[Dict[str, Any]]) -> Dict[str, Any] | None:
@@ -28,51 +28,40 @@ def _pick_random(instances: List[Dict[str, Any]]) -> Dict[str, Any] | None:
     return random.choice(instances)
 
 
-def _instance_url(inst: Dict[str, Any]) -> str:
-    return f"http://{inst['host']}:{inst['port']}{CALL_PATH}"
+@app.get("/health")
+async def health():
+    return {"ok": True}
 
 
-def main():
-    mode = "one-shot" if ONE_SHOT else "loop"
-    print(f"[client] mode={mode} registry={REGISTRY_URL} service={SERVICE_NAME} path={CALL_PATH} interval={INTERVAL_SECONDS}s")
-    with httpx.Client(timeout=2.5) as client:
-        while True:
-            try:
-                r = client.get(f"{REGISTRY_URL}/services/{SERVICE_NAME}")
-                r.raise_for_status()
-                instances = r.json()
-            except Exception as e:
-                print(f"[client] discovery failed: {e}")
-                if ONE_SHOT:
-                    return
-                time.sleep(INTERVAL_SECONDS)
-                continue
-            
-            count = len(instances) if isinstance(instances, list) else 0
-            print(f"[client] discovered {count} instance(s) for service={SERVICE_NAME}")
+@app.get("/call")
+async def call(
+    service: str = Query(default=DEFAULT_SERVICE_NAME, min_length=1),
+    path: str = Query(default=DEFAULT_CALL_PATH, min_length=1),
+):
+    async with httpx.AsyncClient(timeout=3.0) as client:
+        r = await client.get(f"{REGISTRY_URL}/services/{service}")
+        r.raise_for_status()
+        instances = r.json()
 
-            inst = _pick_random(instances)
-            if not inst:
-                print(f"[client] no instances found for service={SERVICE_NAME}")
-                if ONE_SHOT:
-                    return
-                time.sleep(INTERVAL_SECONDS)
-                continue
+        inst = _pick_random(instances)
+        if not inst:
+            raise HTTPException(status_code=503, detail=f"No instances available for service={service}")
 
-            url = _instance_url(inst)
-            try:
-                rr = client.get(url)
-                rr.raise_for_status()
-                body = rr.json()
-                print(f"[client] -> {inst['instance_id']} @ {inst['host']}:{inst['port']} => {body}")
-            except Exception as e:
-                print(f"[client] call failed ({url}): {e}")
+        url = f"http://{inst['host']}:{inst['port']}{path}"
+        rr = await client.get(url)
+        rr.raise_for_status()
 
-            if ONE_SHOT:
-                return
-            time.sleep(INTERVAL_SECONDS)
+        resp_json: Any
+        try:
+            resp_json = rr.json()
+        except Exception:
+            resp_json = rr.text
 
-
-if __name__ == "__main__":
-    main()
+        return {
+            "service": service,
+            "known_instances": len(instances),
+            "chosen_instance_id": inst.get("instance_id"),
+            "chosen_url": url,
+            "response": resp_json,
+        }
 
