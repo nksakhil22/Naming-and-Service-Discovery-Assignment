@@ -45,7 +45,7 @@ async def call(
 
         inst = _pick_random(instances)
         if not inst:
-            raise HTTPException(status_code=503, detail=f"No instances available for service={service}")
+            raise HTTPException(status_code=503, detail=f"no instances for service '{service}'")
 
         url = f"http://{inst['host']}:{inst['port']}{path}"
         rr = await client.get(url)
