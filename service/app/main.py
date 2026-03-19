@@ -67,8 +67,7 @@ async def _register_and_heartbeat_loop():
         while True:
             try:
                 await client.post(
-                    f"{REGISTRY_URL}/heartbeat",
-                    json={"service": SERVICE_NAME, "instance_id": INSTANCE_ID},
+                    f"{REGISTRY_URL}/heartbeat/{SERVICE_NAME}/{INSTANCE_ID}",
                 )
             except Exception:
                 # If registry is temporarily unavailable, keep retrying; TTL will eventually expire otherwise.

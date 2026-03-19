@@ -19,6 +19,7 @@ REGISTRY_URL = _env("REGISTRY_URL")
 SERVICE_NAME = _env("SERVICE_NAME", "hello-service")
 CALL_PATH = _env("CALL_PATH", "/hello")
 INTERVAL_SECONDS = float(_env("INTERVAL_SECONDS", "2"))
+ONE_SHOT = os.getenv("ONE_SHOT", "0") == "1"
 
 
 def _pick_random(instances: List[Dict[str, Any]]) -> Dict[str, Any] | None:
@@ -32,7 +33,8 @@ def _instance_url(inst: Dict[str, Any]) -> str:
 
 
 def main():
-    print(f"[client] registry={REGISTRY_URL} service={SERVICE_NAME} path={CALL_PATH} interval={INTERVAL_SECONDS}s")
+    mode = "one-shot" if ONE_SHOT else "loop"
+    print(f"[client] mode={mode} registry={REGISTRY_URL} service={SERVICE_NAME} path={CALL_PATH} interval={INTERVAL_SECONDS}s")
     with httpx.Client(timeout=2.5) as client:
         while True:
             try:
@@ -41,12 +43,19 @@ def main():
                 instances = r.json()
             except Exception as e:
                 print(f"[client] discovery failed: {e}")
+                if ONE_SHOT:
+                    return
                 time.sleep(INTERVAL_SECONDS)
                 continue
+            
+            count = len(instances) if isinstance(instances, list) else 0
+            print(f"[client] discovered {count} instance(s) for service={SERVICE_NAME}")
 
             inst = _pick_random(instances)
             if not inst:
-                print("[client] no instances found")
+                print(f"[client] no instances found for service={SERVICE_NAME}")
+                if ONE_SHOT:
+                    return
                 time.sleep(INTERVAL_SECONDS)
                 continue
 
@@ -59,6 +68,8 @@ def main():
             except Exception as e:
                 print(f"[client] call failed ({url}): {e}")
 
+            if ONE_SHOT:
+                return
             time.sleep(INTERVAL_SECONDS)
 
 

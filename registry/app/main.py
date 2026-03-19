@@ -81,6 +81,12 @@ async def heartbeat(req: HeartbeatRequest):
     return {"ok": True, "ts": now}
 
 
+@app.post("/heartbeat/{service_name}/{instance_id}")
+async def heartbeat_path(service_name: str, instance_id: str):
+    # Path-based heartbeat so registry access logs show service + instance_id
+    return await heartbeat(HeartbeatRequest(service=service_name, instance_id=instance_id))
+
+
 @app.post("/deregister")
 async def deregister(req: DeregisterRequest):
     async with lock:
@@ -104,6 +110,12 @@ async def list_instances(service_name: str, healthy_only: bool = True) -> List[d
         instances = [i for i in instances if i.is_alive(now)]
 
     return [i.model_dump() for i in instances]
+
+
+@app.get("/discover/{service_name}")
+async def discover(service_name: str, healthy_only: bool = True) -> dict:
+    instances = await list_instances(service_name=service_name, healthy_only=healthy_only)
+    return {"service": service_name, "count": len(instances), "instances": instances}
 
 
 async def _reaper_loop():
